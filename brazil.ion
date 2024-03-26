@@ -1,0 +1,39 @@
+'brazil_package_spec@1.0'
+
+common::{
+  name: "LastMileKotlinInjectFork",
+  major_version: "1.0",
+
+  dependencies: {
+    default_closure: run,
+
+    closures: {
+      run: public::{
+        include: [],
+      },
+    },
+
+    build_after: [
+      // List source packages here only when they build in the same version set
+      // and this package depends on their Maven-format artifacts.
+    ],
+  },
+
+  build: {
+    command: "run-gradlew",
+
+    env: {
+      PATH: [
+        (farm "PeruGradle" "bin"),
+        (env PATH),
+      ],
+    },
+
+    outputs: {
+      public_dir : null,
+      private_dir: null,
+    },
+
+    cleaned: [ "./build" ],
+  },
+}

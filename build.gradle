@@ -1,0 +1,37 @@
+def gettingStarted = '''
+To get started:
+- Check out this package in a workspace using a Peru version set
+- Run "brazil-build pristine"
+  - Running "brazil-build" with PeruGradle generates a gradle wrapper
+  - The pristine task removes the getting-started gradle scripts
+- Run "./gradlew init" and follow Gradle's prompts
+- Write code, solve a problem, make the world better
+
+Docs:
+- https://builderhub.corp.amazon.com/docs/brazil/user-guide/java-peru.html
+- https://code.amazon.com/packages/PeruGradle
+- https://docs.gradle.org
+'''
+
+tasks.register('release') {
+  doLast {
+    println gettingStarted
+  }
+}
+
+defaultTasks 'release'
+
+tasks.register('pristine') {
+  doLast {
+    // The build.gradle file only exists to make the create template
+    // vendable and give next steps to a user. The settings.gradle
+    // file exists to prevent `./gradlew init` from failing.
+
+    // Here we remove these bootstrapping files, and let `gradle init`
+    // generate the relevant build logic.
+
+    rootDir.toPath().resolve('build.gradle').toFile().delete()
+    rootDir.toPath().resolve('settings.gradle').toFile().delete()
+  }
+}
+
