@@ -5,11 +5,10 @@ common::{
   major_version: "1.0",
 
   dependencies: {
-    default_closure: run,
-
+    default_closure: pkg,
     closures: {
-      run: public::{
-        include: [],
+      pkg: public:: {
+        include: [self]
       },
     },
 
@@ -20,13 +19,14 @@ common::{
   },
 
   build: {
-    command: "run-gradlew",
+    command: "build-tools/bin/custom-build",
 
     env: {
       PATH: [
         (farm "PeruGradle" "bin"),
         (env PATH),
       ],
+      JAVA_HOME : (env JAVA_17_HOME), // assign JAVA_HOME during build from current env
     },
 
     outputs: {

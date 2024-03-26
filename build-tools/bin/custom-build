@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -x # Echo commands run by this script to stdout.
+set -e # Stop the script if there's an error.
+
+SCRIPT_DIR=`dirname $0`
+PACKAGE_DIR=`(cd $SCRIPT_DIR/../..; pwd)` # Absolute
+
+if [ "$BRAZIL_PACKAGE_VERSION" != "" ] && [ "$BRAZIL_PACKAGE_CHANGE_ID" != "" ]
+then
+    IS_CI=true
+else
+    IS_CI=false
+fi
+
+GRADLE_ARGS=( '--show-version' "-Dcom.amazon.lastmile.ci=$IS_CI")
+if $IS_CI
+then
+    # This is running in a pipeline. Use stacktraces by default in pipelines.
+    GRADLE_ARGS=( "${GRADLE_ARGS[@]}" '--continue' '--stacktrace' )
+fi
+
+run-gradlew "$@" "${GRADLE_ARGS[@]}"

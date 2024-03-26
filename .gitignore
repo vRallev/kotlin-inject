@@ -1,0 +1,44 @@
+# Gradle
+.gradle
+/.gradle/
+build/
+!/scripts/**/build
+local.properties
+/reports/
+
+# Peru Gradle
+/gradle/wrapper/gradle-wrapper.jar
+/gradle/wrapper/gradle-wrapper.properties
+/gradlew
+/gradlew.bat
+
+# Gradle Profiler
+profile-out*
+gradle-user-home
+
+# IntelliJ IDEA
+.idea/
+!.idea/vcs.xml
+!.idea/runConfigurations/
+!.idea/scopes/
+*.iml
+*.ipl
+*.ipr
+*.iws
+classes/
+idea-classes/
+coverage-error.log
+.shelf/
+
+# Fleet
+!.fleet/run.json
+!.fleet/settings.json
+.fleet
+
+# Android
+project.properties
+.cxx
+
+# Steve Jobs
+.DS_Store
+
