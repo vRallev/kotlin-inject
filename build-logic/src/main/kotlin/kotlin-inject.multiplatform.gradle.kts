@@ -70,7 +70,9 @@ tasks.withType<KotlinNpmInstallTask> {
 }
 
 rootProject.the<NodeJsRootExtension>().apply {
-    nodeVersion = "22.0.0-v8-canary20231127cbafc81f11"
+    // In this fork we changed the version otherwise it wouldn't build and download the dependency.
+    // nodeVersion = "22.0.0-v8-canary20231127cbafc81f11"
+    nodeVersion = "22.0.0-v8-canary20240326938c334518"
     nodeDownloadBaseUrl = "https://nodejs.org/download/v8-canary"
 }
 

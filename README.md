@@ -7,3 +7,8 @@ releases and many fixes are only part of the latest snapshot builds. This fork u
 ```
 LastMileAppPlatform/mainline
 ```
+
+### Building
+```
+brazil-build test assemble checkApple check --continue
+```
