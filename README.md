@@ -1,7 +1,21 @@
 # LastMileKotlinInjectFork
 
-This is a fork of the [kotlin-inject](https://github.com/evant/kotlin-inject) dependency injection framework. The library is lacking frequent
-releases and many fixes are only part of the latest snapshot builds. This fork uploads releases to our CodeArtifact repo to consume them earlier.
+This is a fork of the [kotlin-inject](https://github.com/evant/kotlin-inject) dependency injection
+framework. The library is lacking frequent releases and many fixes are only part of the latest
+snapshot builds. This fork uploads releases to our CodeArtifact repo to consume them earlier.
+
+## Importing
+```
+plugins {
+    id("org.jetbrains.kotlin.jvm") version "..."
+    id("com.google.devtools.ksp") version "..."
+}
+
+dependencies {
+    ksp("com.amazon.lastmile.fork.me.tatarka.inject:kotlin-inject-compiler-ksp:$version")
+    implementation("com.amazon.lastmile.fork.me.tatarka.inject:kotlin-inject-runtime:$version")
+}
+```
 
 ## VersionSet
 ```
@@ -15,7 +29,6 @@ brazil-build test assemble checkApple check --continue
 Note that some tests may fail depending on which platforms you have installed.
 
 ## Merging upstream
-
 Add the Github repository as remote:
 ```
 > git remote add fork https://github.com/evant/kotlin-inject.git
@@ -36,7 +49,6 @@ share	ssh://git.amazon.com:2222/pkg/LastMileKotlinInjectFork/share/rwo (push)
 Then merge `fork/main` into `mainline`.
 
 ## Publishing releases
-
 1. Ensure that all artifacts can be built and published into the local maven repo:
    ```
    ./scripts/publish-maven-local
@@ -66,7 +78,6 @@ Then merge `fork/main` into `mainline`.
    ```
 
 ## Publishing snapshots
-
 1. Verify in `gradle/libs.versions.toml` that the version has a `-SNAPSHOT` suffix.
 2. Push the artifacts to CodeArtifact.
    ```
