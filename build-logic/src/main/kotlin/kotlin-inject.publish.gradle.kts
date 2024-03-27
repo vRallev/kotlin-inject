@@ -65,15 +65,43 @@ publishing {
             }
         }
     }
+
+    repositories {
+        maven {
+            name = "CodeArtifact"
+            setUrl("https://amazon-149122183214.d.codeartifact.us-west-2.amazonaws.com/maven/LastMileAppPlatform_mainline/")
+
+            val authToken = rootProject.ext.get("code_artifact_auth_token")?.toString()
+
+            credentials {
+                username = "aws"
+
+                if (authToken != null) {
+                    credentials.password = authToken
+                }
+            }
+
+            tasks.withType(PublishToMavenRepository::class.java).configureEach {
+                if ("codeartifact" in name.lowercase()) {
+                    doFirst {
+                        checkNotNull(authToken) {
+                            "The auth token for CodeArtifact was not set. " +
+                                "See PUBLISHING.md for instructions."
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 signing {
     setRequired {
-        findProperty("signing.keyId") != null
+        false
     }
 
     publishing.publications.all {
-        sign(this)
+        // sign(this)
     }
 }
 

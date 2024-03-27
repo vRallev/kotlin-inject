@@ -1,0 +1,35 @@
+#!/bin/sh
+
+set -x # Echo commands run by this script to stdout.
+set -e # Stop the script if there's an error.
+
+VERSION_LINE=`grep "^kotlin-inject" gradle/libs.versions.toml`
+VERSION=`cut -d "\"" -f2- <<< "$VERSION_LINE"`
+VERSION=`cut -d "\"" -f1 <<< "$VERSION"`
+
+if [[ "$VERSION" == *"SNAPSHOT"* ]];
+then
+    echo "Publishing SNAPSHOT build: $VERSION"
+else
+
+    if [[ `git status --porcelain` ]]; then
+      echo "Do not publish temporary changes. Commit your changes first and push them to the remote repository before publishing any build."
+      exit 1
+    fi
+
+    GIT_TAGS=`git tag --points-at HEAD`
+    if ! [[ "$GIT_TAGS" == *"$VERSION"* ]]; then
+        echo "No git tag found with version $VERSION"
+        exit 1
+    fi
+
+    echo "Publishing stable build: $VERSION"
+fi
+
+# Update AWS token
+ada credentials update --account=199551660163 --provider=conduit --role=IibsAdminAccess-DO-NOT-DELETE --once
+
+# Get an auth token for CodeArtifact.
+CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain amazon --domain-owner 149122183214 --region us-west-2 --query authorizationToken --output text`
+
+./gradlew publishAllPublicationsToCodeArtifactRepository -Dcom.amazon.lastmile.codeartifact.token=$CODEARTIFACT_AUTH_TOKEN --rerun-tasks --no-build-cache

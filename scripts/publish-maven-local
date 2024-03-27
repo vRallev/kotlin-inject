@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -x # Echo commands run by this script to stdout.
+set -e # Stop the script if there's an error.
+
+VERSION_LINE=`grep "^kotlin-inject" gradle/libs.versions.toml`
+VERSION=`cut -d "\"" -f2- <<< "$VERSION_LINE"`
+VERSION=`cut -d "\"" -f1 <<< "$VERSION"`
+
+echo "Publishing build $VERSION to maven local"
+
+./gradlew publishToMavenLocal --rerun-tasks --no-build-cache

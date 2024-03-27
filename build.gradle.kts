@@ -11,8 +11,10 @@ plugins {
     base
 }
 
-group = "me.tatarka.inject"
+group = "com.amazon.lastmile.fork.me.tatarka.inject"
 version = libs.versions.kotlin.inject.get()
+
+ext.set("code_artifact_auth_token", System.getProperty("com.amazon.lastmile.codeartifact.token"))
 
 nexusPublishing {
     repositories {
