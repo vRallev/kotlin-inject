@@ -1,6 +1,7 @@
 package me.tatarka.inject.compiler
 
 import me.tatarka.inject.compiler.TypeResult.Object
+import me.tatarka.kotlin.ast.AstAnnotation
 import me.tatarka.kotlin.ast.AstClass
 import me.tatarka.kotlin.ast.AstConstructor
 import me.tatarka.kotlin.ast.AstElement
@@ -24,10 +25,10 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
      * Resolves all [TypeResult] for provider methods in the given class.
      */
     fun resolveAll(context: Context, astClass: AstClass): List<TypeResult.Provider> {
-        return context.types.providerMethods.map { method ->
+        return context.types.providerMembers.map { member ->
             // reset the name allocator between methods so that arg names are not unique across
             // all functions of a component
-            Provider(context.copyNameAllocator(), astClass, method)
+            Provider(context.copyNameAllocator(), astClass, member.member, member.qualifier)
         }
     }
 
@@ -61,7 +62,7 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
     private fun resolveParams(
         context: Context,
         element: AstElement,
-        scope: AstType?,
+        scope: AstAnnotation?,
         params: List<AstParam>,
     ): Map<String, TypeResultRef> {
         return if (params.any { it.isAssisted() }) {
@@ -76,12 +77,12 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
     private fun resolveParamsNew(
         context: Context,
         element: AstElement,
-        scope: AstType?,
+        scope: AstAnnotation?,
         params: List<AstParam>,
     ): Map<String, TypeResultRef> {
         if (scope != null) {
             throw FailedToGenerateException(
-                "Cannot apply scope: @${scope.simpleName} to type with @Assisted parameters: [${
+                "Cannot apply scope: $scope to type with @Assisted parameters: [${
                     params.filter { it.isAssisted() }.joinToString()
                 }]"
             )
@@ -90,7 +91,7 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         var assistedFailed = false
         val args = context.args.toMutableList()
         for (param in params) {
-            val key = TypeKey(param.type, param.qualifier(options))
+            val key = TypeKey(param.type, param.qualifier(provider, options))
             if (param.isAssisted()) {
                 val arg = args.removeFirstOrNull()
                 if (arg != null) {
@@ -134,11 +135,11 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         return paramsWithName
     }
 
-    // old behavior where the last args are used, warn.
+    // old behavior where the last args are used, error.
     private fun resolveParamsLegacy(
         context: Context,
         element: AstElement,
-        scope: AstType?,
+        scope: AstAnnotation?,
         params: List<AstParam>,
     ): Map<String, TypeResultRef> {
         val size = params.size
@@ -147,7 +148,7 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         val resolvedImplicitly = mutableListOf<AstParam>()
         for ((i, param) in params.withIndex()) {
             val indexFromEnd = size - i - 1
-            val key = TypeKey(param.type, param.qualifier(options))
+            val key = TypeKey(param.type, param.qualifier(provider, options))
             val arg = args.getOrNull(indexFromEnd)
             if (arg != null) {
                 val (type, name) = arg
@@ -166,16 +167,16 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         }
 
         if (resolvedImplicitly.isNotEmpty()) {
-            provider.warn(
+            provider.error(
                 """
-                Implicit assisted parameters are deprecated and will be removed in a future version.
+                Implicit assisted parameters is no longer supported.
                 Annotate the following with @Assisted: [${resolvedImplicitly.joinToString()}]
                 """.trimIndent(),
                 element
             )
             if (scope != null) {
                 throw FailedToGenerateException(
-                    "Cannot apply scope: @${scope.simpleName} to type with @Assisted parameters: [${
+                    "Cannot apply scope: $scope to type with @Assisted parameters: [${
                         resolvedImplicitly.joinToString()
                     }]"
                 )
@@ -195,11 +196,11 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
 
         val providerResult = types.providerType(key)
         if (providerResult != null) {
-            val (method, types) = providerResult
+            val (member, types) = providerResult
             return Provides(
                 context = withTypes(types),
-                accessor = method.accessor,
-                method = method.method,
+                accessor = member.accessor,
+                method = member.method,
                 scope = null,
                 key = key,
             )
@@ -243,7 +244,7 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         return null
     }
 
-    private fun Context.method(key: TypeKey, creator: Method): TypeResult {
+    private fun Context.method(key: TypeKey, creator: Member): TypeResult {
         return if (creator.scopedComponent != null && skipScoped != creator.method.returnType) {
             Scoped(
                 context = this,
@@ -347,20 +348,20 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
     }
 
     private fun Context.constructor(key: TypeKey, injectCtor: AstConstructor, astClass: AstClass): TypeResult {
-        val scope = astClass.scopeType(options)
+        val scope = astClass.scope(options)
         val scopedResult = if (scope != null) types.scopedAccessor(scope) else null
         if (scope != null && scopedResult == null) {
             val checkedComponents = types.iterator().asSequence().map { result ->
                 buildString {
-                    val scope = result.astClass.scopeType(options)
+                    val scope = result.astClass.scope(options)
                     if (scope != null) {
-                        append("@$scope ")
+                        append("$scope ")
                     }
                     append(result.astClass)
                 }
             }
             throw FailedToGenerateException(
-                """Cannot find component with scope: @$scope to inject $astClass
+                """Cannot find component with scope: $scope to inject $astClass
                     |checked: [${checkedComponents.joinToString(", ")}]
                 """.trimMargin(),
                 astClass,
@@ -391,9 +392,10 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         context: Context,
         astClass: AstClass,
         method: AstMember,
+        qualifier: AstAnnotation?,
     ): TypeResult.Provider {
         val returnType = method.returnTypeFor(astClass)
-        val key = TypeKey(returnType, method.qualifier(options))
+        val key = TypeKey(returnType, qualifier)
         val result = withCycleDetection(key, method) {
             resolve(context.withoutProvider(returnType), method, key).result
         }
@@ -412,12 +414,12 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         context: Context,
         accessor: Accessor,
         method: AstMember,
-        scope: AstType?,
+        scope: AstAnnotation?,
         key: TypeKey,
     ): TypeResult {
         if (scope != null && method is AstFunction && method.isSuspend) {
             throw FailedToGenerateException(
-                "@Provides scoped with @${scope.simpleName} cannot be suspend, consider returning Deferred<T> instead."
+                "@Provides scoped with $scope cannot be suspend, consider returning Deferred<T> instead."
             )
         }
         return withCycleDetection(key, method) {
@@ -426,7 +428,7 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
                 methodName = method.name,
                 accessor = accessor,
                 receiver = method.receiverParameterType?.let {
-                    val key = TypeKey(it, method.qualifier(options))
+                    val key = TypeKey(it, key.qualifier)
                     resolve(context, method, key)
                 },
                 isProperty = method is AstProperty,
@@ -453,7 +455,7 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
         context: Context,
         constructor: AstConstructor,
         outerClassType: AstType?,
-        scope: AstType?,
+        scope: AstAnnotation?,
         key: TypeKey,
     ) = withCycleDetection(key, constructor) {
         TypeResult.Constructor(
@@ -467,13 +469,13 @@ class TypeResultResolver(private val provider: AstProvider, private val options:
 
     private fun Container(
         creator: String,
-        args: List<Pair<Method, TypeCollector.Result>>,
-        mapArg: (TypeKey, Method, TypeCollector.Result) -> TypeResult,
+        args: List<Pair<Member, TypeCollector.Result>>,
+        mapArg: (TypeKey, Member, TypeCollector.Result) -> TypeResult,
     ): TypeResult {
         return TypeResult.Container(
             creator = creator,
             args = args.map { (arg, types) ->
-                val key = TypeKey(arg.method.returnType, arg.method.qualifier(options))
+                val key = TypeKey(arg.method.returnType, arg.method.qualifier(provider, options))
                 TypeResultRef(key, mapArg(key, arg, types))
             }
         )

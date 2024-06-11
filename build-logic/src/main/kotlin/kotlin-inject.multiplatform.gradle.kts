@@ -70,13 +70,6 @@ tasks.withType<KotlinNpmInstallTask> {
     args += "--ignore-scripts"
 }
 
-rootProject.the<NodeJsRootExtension>().apply {
-    // In this fork we changed the version otherwise it wouldn't build and download the dependency.
-    // nodeVersion = "22.0.0-v8-canary20231127cbafc81f11"
-    nodeVersion = "22.0.0-v8-canary20240326938c334518"
-    nodeDownloadBaseUrl = "https://nodejs.org/download/v8-canary"
-}
-
 rootProject.tasks.withType<KotlinNpmInstallTask>().configureEach {
     args.add("--ignore-engines")
 }

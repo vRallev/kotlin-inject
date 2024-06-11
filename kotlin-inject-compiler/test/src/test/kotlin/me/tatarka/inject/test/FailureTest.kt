@@ -424,8 +424,8 @@ class FailureTest {
                 """.trimIndent()
             ).compile()
         }.output().all {
-            contains("Cannot apply scope: MyScope1")
-            contains("as scope: MyScope2 is already applied")
+            contains("Cannot apply scope: @MyScope1")
+            contains("as scope: @MyScope2 is already applied")
         }
     }
 
@@ -447,8 +447,8 @@ class FailureTest {
                 """.trimIndent()
             ).compile()
         }.output().all {
-            contains("Cannot apply scope: MyScope1")
-            contains("as scope: MyScope1 is already applied to parent")
+            contains("Cannot apply scope: @MyScope1")
+            contains("as scope: @MyScope1 is already applied to parent")
         }
     }
 
@@ -547,7 +547,7 @@ class FailureTest {
             ).compile()
         }.output().all {
             contains(
-                "@Provides with scope: MyScope cannot be provided in an unscoped component"
+                "@Provides with scope: @MyScope cannot be provided in an unscoped component"
             )
         }
     }
@@ -573,7 +573,7 @@ class FailureTest {
             ).compile()
         }.output().all {
             contains(
-                "@Provides with scope: MyScope2 must match component scope: MyScope1"
+                "@Provides with scope: @MyScope2 must match component scope: @MyScope1"
             )
         }
     }
@@ -907,8 +907,8 @@ class FailureTest {
                 """.trimIndent()
             ).compile()
         }.output().all {
-            contains("Cannot apply multiple scopes: [FooSingleton, FooSingleton2]")
-            contains("Cannot apply multiple scopes: [FooSingleton, FooSingleton3]")
+            contains("Cannot apply multiple scopes: [@FooSingleton, @FooSingleton2]")
+            contains("Cannot apply multiple scopes: [@FooSingleton, @FooSingleton3]")
         }
     }
 
@@ -966,11 +966,11 @@ class FailureTest {
                 """.trimIndent()
             ).compile()
         }.output().all {
-            contains("Cannot apply scope: FooSingleton2")
-            contains("as scope: FooSingleton is already applied")
+            contains("Cannot apply scope: @FooSingleton2")
+            contains("as scope: @FooSingleton is already applied")
 
-            contains("Cannot apply scope: FooSingleton")
-            contains("as scope: FooSingleton2 is already applied")
+            contains("Cannot apply scope: @FooSingleton")
+            contains("as scope: @FooSingleton2 is already applied")
         }
     }
 
@@ -1028,11 +1028,122 @@ class FailureTest {
                 """.trimIndent()
             ).compile()
         }.output().all {
-            contains("Cannot apply scope: FooSingleton2")
-            contains("as scope: FooSingleton is already applied")
+            contains("Cannot apply scope: @FooSingleton2")
+            contains("as scope: @FooSingleton is already applied")
 
-            contains("Cannot apply scope: FooSingleton")
-            contains("as scope: FooSingleton2 is already applied")
+            contains("Cannot apply scope: @FooSingleton")
+            contains("as scope: @FooSingleton2 is already applied")
+        }
+    }
+
+    @Suppress("UnusedParameter")
+    @ParameterizedTest
+    @EnumSource(Target::class)
+    fun fails_on_implicit_assisted_params(target: Target) {
+        val projectCompiler = ProjectCompiler(target, workingDir)
+
+        assertFailure {
+            projectCompiler.source(
+                "MyComponent.kt",
+                """
+                import me.tatarka.inject.annotations.Component
+                import me.tatarka.inject.annotations.Inject
+                import me.tatarka.inject.annotations.Provides
+                import me.tatarka.inject.annotations.Assisted
+                
+                @Inject class Bar
+                @Inject class Foo(val bar: Bar, assisted: String)
+                
+                @Component abstract class MyComponent {
+                    abstract fun foo(): (String) -> Foo
+                }
+                """.trimIndent()
+            ).compile()
+        }.output().all {
+            contains("Implicit assisted parameters is no longer supported.")
+            contains("Annotate the following with @Assisted: [assisted: String]")
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Target::class)
+    fun fails_if_multiple_qualifiers_are_applied(target: Target) {
+        val projectCompiler = ProjectCompiler(target, workingDir)
+
+        assertFailure {
+            projectCompiler.source(
+                "MyComponent.kt",
+                """
+                import me.tatarka.inject.annotations.Component
+                import me.tatarka.inject.annotations.Inject
+                import me.tatarka.inject.annotations.Provides
+                import me.tatarka.inject.annotations.Qualifier
+                
+                @Qualifier
+                annotation class Qualifier1
+                
+                @Qualifier
+                annotation class Qualifier2
+                
+                @Component
+                abstract class MultipleQualifiersComponent {
+                    @Qualifier1
+                    abstract val foo: String
+                    
+                    @Qualifier1 @Qualifier2
+                    @Provides fun providesFoo(): String = "test"
+                }
+                """.trimIndent()
+            ).compile()
+        }.output().all {
+            contains("Cannot apply multiple qualifiers: [@Qualifier1, @Qualifier2]")
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Target::class)
+    fun fails_if_target_component_accessor_function_is_not_an_expect_fun(target: Target) {
+        val projectCompiler = ProjectCompiler(target, workingDir)
+
+        assertFailure {
+            projectCompiler.source(
+                "MyComponent.kt",
+                """
+                import me.tatarka.inject.annotations.Component
+                import me.tatarka.inject.annotations.KmpComponentCreate
+                
+                @Component abstract class MyComponent
+                
+                @KmpComponentCreate
+                fun createKmp(): MyComponent {}
+                """.trimIndent()
+            ).compile()
+        }.output().all {
+            contains("createKmp should be an expect fun")
+        }
+    }
+
+    @ParameterizedTest
+    @EnumSource(Target::class)
+    fun fails_if_target_component_accessor_function_does_not_return_a_type_annotated_with_component(target: Target) {
+        val projectCompiler = ProjectCompiler(target, workingDir)
+
+        assertFailure {
+            projectCompiler.source(
+                "MyComponent.kt",
+                """
+                import me.tatarka.inject.annotations.KmpComponentCreate
+                
+                @KmpComponentCreate
+                expect fun createKmp()
+                
+                @KmpComponentCreate
+                expect fun createKmp2(): String
+                """.trimIndent()
+            ).compile()
+        }.output().all {
+            contains("createKmp's return type should be a type annotated with @Component")
+            contains("createKmp2's return type should be a type annotated with @Component")
         }
     }
 }
