@@ -39,6 +39,9 @@ coverage-error.log
 project.properties
 .cxx
 
+# Kotlin
+.kotlin
+
 # Steve Jobs
 .DS_Store
 
